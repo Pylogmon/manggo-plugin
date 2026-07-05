@@ -1,0 +1,338 @@
+{
+  "manifestVersion": 1,
+  "id": "com.manggo.examples.openai-compatible-services",
+  "name": "OpenAI Compatible Translation, OCR and TTS",
+  "version": "1.2.0",
+  "description": "A Manggo native plugin example that provides OpenAI-compatible translation, OCR, and OpenAI text-to-speech services.",
+  "author": "Manggo",
+  "homepage": "https://github.com/pylogmon/Manggo",
+  "icon": "icon.svg",
+  "permissions": [
+    "network"
+  ],
+  "runtime": {
+    "kind": "bun",
+    "api": "manggo.plugin.v1",
+    "main": "main.js"
+  },
+  "services": [
+    {
+      "id": "translation",
+      "providerId": "com.manggo.examples.openai-compatible-services.translation",
+      "kind": "translation",
+      "displayName": "OpenAI Compatible Translator",
+      "entry": "translate",
+      "main": "main.js",
+      "icon": "icon.svg",
+      "permissions": [
+        "network"
+      ],
+      "language": {
+        "auto": "auto",
+        "en_US": "English",
+        "zh_CN": "Simplified Chinese",
+        "zh_TW": "Traditional Chinese",
+        "ja_JP": "Japanese",
+        "ko_KR": "Korean",
+        "fr_FR": "French",
+        "vi_VN": "Vietnamese",
+        "de_DE": "German",
+        "it_IT": "Italian",
+        "ru_RU": "Russian",
+        "uk_UA": "Ukrainian"
+      },
+      "config": [
+        {
+          "key": "provider",
+          "label": "Provider preset",
+          "control": "select",
+          "editable": true,
+          "default": "openai",
+          "description": "Optional preset name. Choose Custom or type a provider name when using a compatible third-party endpoint.",
+          "options": [
+            { "label": "OpenAI", "value": "openai" },
+            { "label": "OpenRouter", "value": "openrouter" },
+            { "label": "DeepSeek", "value": "deepseek" },
+            { "label": "SiliconFlow", "value": "siliconflow" },
+            { "label": "Custom", "value": "custom" }
+          ]
+        },
+        {
+          "key": "baseUrl",
+          "label": "Base URL",
+          "control": "text",
+          "required": true,
+          "default": "https://api.openai.com/v1",
+          "placeholder": "https://api.openai.com/v1",
+          "description": "OpenAI-compatible API base URL. The plugin calls /chat/completions below this URL."
+        },
+        {
+          "key": "apiKey",
+          "label": "API key",
+          "control": "password",
+          "required": true,
+          "secret": true,
+          "placeholder": "sk-...",
+          "description": "Bearer token sent as the Authorization header."
+        },
+        {
+          "key": "model",
+          "label": "Model",
+          "control": "text",
+          "required": true,
+          "default": "gpt-4o-mini",
+          "placeholder": "gpt-4o-mini"
+        },
+        {
+          "key": "systemPrompt",
+          "label": "System prompt",
+          "control": "textarea",
+          "default": "You are a professional translation engine. Translate faithfully, preserve formatting, and return only the translated text.",
+          "description": "Prompt sent as the system message before each translation request."
+        },
+        {
+          "key": "temperature",
+          "label": "Temperature",
+          "control": "decimal",
+          "default": 0.2,
+          "description": "Sampling temperature passed to the compatible chat completions API."
+        },
+        {
+          "key": "maxTokens",
+          "label": "Max tokens",
+          "control": "integer",
+          "default": 2048,
+          "description": "Maximum output tokens for one translation."
+        },
+        {
+          "key": "stream",
+          "label": "Stream result",
+          "control": "boolean",
+          "default": true,
+          "description": "When enabled, the plugin emits partial translation chunks through options.setResult."
+        }
+      ]
+    },
+    {
+      "id": "ocr",
+      "providerId": "com.manggo.examples.openai-compatible-services.ocr",
+      "kind": "ocr",
+      "displayName": "OpenAI Compatible OCR",
+      "entry": "recognize",
+      "main": "main.js",
+      "icon": "icon.svg",
+      "permissions": [
+        "network"
+      ],
+      "language": {
+        "auto": "auto",
+        "en_US": "English",
+        "zh_CN": "Simplified Chinese",
+        "zh_TW": "Traditional Chinese",
+        "ja_JP": "Japanese",
+        "ko_KR": "Korean",
+        "fr_FR": "French",
+        "vi_VN": "Vietnamese",
+        "de_DE": "German",
+        "it_IT": "Italian",
+        "ru_RU": "Russian",
+        "uk_UA": "Ukrainian"
+      },
+      "config": [
+        {
+          "key": "provider",
+          "label": "Provider preset",
+          "control": "select",
+          "editable": true,
+          "default": "openai",
+          "description": "Optional preset name. Choose Custom or type a provider name when using a compatible third-party endpoint.",
+          "options": [
+            { "label": "OpenAI", "value": "openai" },
+            { "label": "OpenRouter", "value": "openrouter" },
+            { "label": "SiliconFlow", "value": "siliconflow" },
+            { "label": "Custom", "value": "custom" }
+          ]
+        },
+        {
+          "key": "baseUrl",
+          "label": "Base URL",
+          "control": "text",
+          "required": true,
+          "default": "https://api.openai.com/v1",
+          "placeholder": "https://api.openai.com/v1",
+          "description": "OpenAI-compatible API base URL. The plugin calls /chat/completions below this URL."
+        },
+        {
+          "key": "apiKey",
+          "label": "API key",
+          "control": "password",
+          "required": true,
+          "secret": true,
+          "placeholder": "sk-...",
+          "description": "Bearer token sent as the Authorization header."
+        },
+        {
+          "key": "model",
+          "label": "Vision model",
+          "control": "text",
+          "required": true,
+          "default": "gpt-4o-mini",
+          "placeholder": "gpt-4o-mini",
+          "description": "Use a model that supports image input."
+        },
+        {
+          "key": "systemPrompt",
+          "label": "System prompt",
+          "control": "textarea",
+          "default": "You are a precise OCR engine. Extract visible text from images, preserve reading order and line breaks, and return only the recognized text.",
+          "description": "Prompt sent as the system message before each OCR request."
+        },
+        {
+          "key": "imageDetail",
+          "label": "Image detail",
+          "control": "select",
+          "default": "auto",
+          "description": "OpenAI-compatible image detail hint for providers that support it.",
+          "options": [
+            { "label": "Auto", "value": "auto" },
+            { "label": "Low", "value": "low" },
+            { "label": "High", "value": "high" }
+          ]
+        },
+        {
+          "key": "temperature",
+          "label": "Temperature",
+          "control": "decimal",
+          "default": 0,
+          "description": "Sampling temperature passed to the compatible chat completions API."
+        },
+        {
+          "key": "maxTokens",
+          "label": "Max tokens",
+          "control": "integer",
+          "default": 4096,
+          "description": "Maximum output tokens for one OCR request."
+        },
+        {
+          "key": "stream",
+          "label": "Stream result",
+          "control": "boolean",
+          "default": true,
+          "description": "When enabled, the plugin emits partial OCR chunks through options.setResult."
+        }
+      ]
+    },
+    {
+      "id": "speech",
+      "providerId": "com.manggo.examples.openai-compatible-services.speech",
+      "kind": "speech",
+      "displayName": "OpenAI Text-to-Speech",
+      "entry": "tts",
+      "main": "main.js",
+      "icon": "icon.svg",
+      "permissions": [
+        "network"
+      ],
+      "language": {
+        "auto": "auto",
+        "en_US": "en",
+        "zh_CN": "zh",
+        "zh_TW": "zh-TW",
+        "ja_JP": "ja",
+        "ko_KR": "ko",
+        "fr_FR": "fr",
+        "vi_VN": "vi",
+        "de_DE": "de",
+        "it_IT": "it",
+        "ru_RU": "ru",
+        "uk_UA": "uk"
+      },
+      "config": [
+        {
+          "key": "baseUrl",
+          "label": "Base URL",
+          "control": "text",
+          "required": true,
+          "default": "https://api.openai.com/v1",
+          "placeholder": "https://api.openai.com/v1",
+          "description": "OpenAI API base URL. The plugin calls /audio/speech below this URL."
+        },
+        {
+          "key": "apiKey",
+          "label": "API key",
+          "control": "password",
+          "required": true,
+          "secret": true,
+          "placeholder": "sk-...",
+          "description": "Bearer token sent as the Authorization header."
+        },
+        {
+          "key": "model",
+          "label": "TTS model",
+          "control": "select",
+          "editable": true,
+          "required": true,
+          "default": "gpt-4o-mini-tts",
+          "description": "Speech model sent to OpenAI's /audio/speech endpoint.",
+          "options": [
+            { "label": "GPT-4o mini TTS", "value": "gpt-4o-mini-tts" },
+            { "label": "TTS 1", "value": "tts-1" },
+            { "label": "TTS 1 HD", "value": "tts-1-hd" }
+          ]
+        },
+        {
+          "key": "voice",
+          "label": "Voice",
+          "control": "select",
+          "editable": true,
+          "required": true,
+          "default": "marin",
+          "description": "Built-in voice name. You can also type a custom voice ID such as voice_123abc.",
+          "options": [
+            { "label": "Alloy", "value": "alloy" },
+            { "label": "Ash", "value": "ash" },
+            { "label": "Ballad", "value": "ballad" },
+            { "label": "Coral", "value": "coral" },
+            { "label": "Echo", "value": "echo" },
+            { "label": "Fable", "value": "fable" },
+            { "label": "Nova", "value": "nova" },
+            { "label": "Onyx", "value": "onyx" },
+            { "label": "Sage", "value": "sage" },
+            { "label": "Shimmer", "value": "shimmer" },
+            { "label": "Verse", "value": "verse" },
+            { "label": "Marin", "value": "marin" },
+            { "label": "Cedar", "value": "cedar" }
+          ]
+        },
+        {
+          "key": "instructions",
+          "label": "Voice instructions",
+          "control": "textarea",
+          "default": "Speak clearly and naturally. Preserve the language and meaning of the input text.",
+          "description": "Optional style instructions. OpenAI currently applies this to gpt-4o-mini-tts, not tts-1 or tts-1-hd."
+        },
+        {
+          "key": "responseFormat",
+          "label": "Audio format",
+          "control": "select",
+          "default": "mp3",
+          "description": "Audio format returned by OpenAI. MP3 is the safest default for desktop playback.",
+          "options": [
+            { "label": "MP3", "value": "mp3" },
+            { "label": "WAV", "value": "wav" },
+            { "label": "AAC", "value": "aac" },
+            { "label": "FLAC", "value": "flac" },
+            { "label": "Opus", "value": "opus" }
+          ]
+        },
+        {
+          "key": "speed",
+          "label": "Speed",
+          "control": "decimal",
+          "default": 1,
+          "description": "Speech speed. OpenAI accepts 0.25 to 4.0; the plugin clamps values to that range."
+        }
+      ]
+    }
+  ]
+}
