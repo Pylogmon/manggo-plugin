@@ -5,8 +5,8 @@
   "version": "1.2.0",
   "description": "A Manggo native plugin example that provides OpenAI-compatible translation, OCR, and OpenAI text-to-speech services.",
   "author": "Manggo",
-  "homepage": "https://github.com/pylogmon/Manggo",
-  "icon": "icon.svg",
+  "homepage": "https://github.com/pylogmon/manggo-plugin",
+  "icon": "icon.png",
   "permissions": [
     "network"
   ],
@@ -23,7 +23,7 @@
       "displayName": "OpenAI Compatible Translator",
       "entry": "translate",
       "main": "main.js",
-      "icon": "icon.svg",
+      "icon": "icon.png",
       "permissions": [
         "network"
       ],
@@ -50,11 +50,26 @@
           "default": "openai",
           "description": "Optional preset name. Choose Custom or type a provider name when using a compatible third-party endpoint.",
           "options": [
-            { "label": "OpenAI", "value": "openai" },
-            { "label": "OpenRouter", "value": "openrouter" },
-            { "label": "DeepSeek", "value": "deepseek" },
-            { "label": "SiliconFlow", "value": "siliconflow" },
-            { "label": "Custom", "value": "custom" }
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "OpenRouter",
+              "value": "openrouter"
+            },
+            {
+              "label": "DeepSeek",
+              "value": "deepseek"
+            },
+            {
+              "label": "SiliconFlow",
+              "value": "siliconflow"
+            },
+            {
+              "label": "Custom",
+              "value": "custom"
+            }
           ]
         },
         {
@@ -120,7 +135,7 @@
       "displayName": "OpenAI Compatible OCR",
       "entry": "recognize",
       "main": "main.js",
-      "icon": "icon.svg",
+      "icon": "icon.png",
       "permissions": [
         "network"
       ],
@@ -147,10 +162,22 @@
           "default": "openai",
           "description": "Optional preset name. Choose Custom or type a provider name when using a compatible third-party endpoint.",
           "options": [
-            { "label": "OpenAI", "value": "openai" },
-            { "label": "OpenRouter", "value": "openrouter" },
-            { "label": "SiliconFlow", "value": "siliconflow" },
-            { "label": "Custom", "value": "custom" }
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "OpenRouter",
+              "value": "openrouter"
+            },
+            {
+              "label": "SiliconFlow",
+              "value": "siliconflow"
+            },
+            {
+              "label": "Custom",
+              "value": "custom"
+            }
           ]
         },
         {
@@ -194,9 +221,18 @@
           "default": "auto",
           "description": "OpenAI-compatible image detail hint for providers that support it.",
           "options": [
-            { "label": "Auto", "value": "auto" },
-            { "label": "Low", "value": "low" },
-            { "label": "High", "value": "high" }
+            {
+              "label": "Auto",
+              "value": "auto"
+            },
+            {
+              "label": "Low",
+              "value": "low"
+            },
+            {
+              "label": "High",
+              "value": "high"
+            }
           ]
         },
         {
@@ -229,7 +265,7 @@
       "displayName": "OpenAI Text-to-Speech",
       "entry": "tts",
       "main": "main.js",
-      "icon": "icon.svg",
+      "icon": "icon.png",
       "permissions": [
         "network"
       ],
@@ -275,9 +311,18 @@
           "default": "gpt-4o-mini-tts",
           "description": "Speech model sent to OpenAI's /audio/speech endpoint.",
           "options": [
-            { "label": "GPT-4o mini TTS", "value": "gpt-4o-mini-tts" },
-            { "label": "TTS 1", "value": "tts-1" },
-            { "label": "TTS 1 HD", "value": "tts-1-hd" }
+            {
+              "label": "GPT-4o mini TTS",
+              "value": "gpt-4o-mini-tts"
+            },
+            {
+              "label": "TTS 1",
+              "value": "tts-1"
+            },
+            {
+              "label": "TTS 1 HD",
+              "value": "tts-1-hd"
+            }
           ]
         },
         {
@@ -289,19 +334,58 @@
           "default": "marin",
           "description": "Built-in voice name. You can also type a custom voice ID such as voice_123abc.",
           "options": [
-            { "label": "Alloy", "value": "alloy" },
-            { "label": "Ash", "value": "ash" },
-            { "label": "Ballad", "value": "ballad" },
-            { "label": "Coral", "value": "coral" },
-            { "label": "Echo", "value": "echo" },
-            { "label": "Fable", "value": "fable" },
-            { "label": "Nova", "value": "nova" },
-            { "label": "Onyx", "value": "onyx" },
-            { "label": "Sage", "value": "sage" },
-            { "label": "Shimmer", "value": "shimmer" },
-            { "label": "Verse", "value": "verse" },
-            { "label": "Marin", "value": "marin" },
-            { "label": "Cedar", "value": "cedar" }
+            {
+              "label": "Alloy",
+              "value": "alloy"
+            },
+            {
+              "label": "Ash",
+              "value": "ash"
+            },
+            {
+              "label": "Ballad",
+              "value": "ballad"
+            },
+            {
+              "label": "Coral",
+              "value": "coral"
+            },
+            {
+              "label": "Echo",
+              "value": "echo"
+            },
+            {
+              "label": "Fable",
+              "value": "fable"
+            },
+            {
+              "label": "Nova",
+              "value": "nova"
+            },
+            {
+              "label": "Onyx",
+              "value": "onyx"
+            },
+            {
+              "label": "Sage",
+              "value": "sage"
+            },
+            {
+              "label": "Shimmer",
+              "value": "shimmer"
+            },
+            {
+              "label": "Verse",
+              "value": "verse"
+            },
+            {
+              "label": "Marin",
+              "value": "marin"
+            },
+            {
+              "label": "Cedar",
+              "value": "cedar"
+            }
           ]
         },
         {
@@ -318,11 +402,26 @@
           "default": "mp3",
           "description": "Audio format returned by OpenAI. MP3 is the safest default for desktop playback.",
           "options": [
-            { "label": "MP3", "value": "mp3" },
-            { "label": "WAV", "value": "wav" },
-            { "label": "AAC", "value": "aac" },
-            { "label": "FLAC", "value": "flac" },
-            { "label": "Opus", "value": "opus" }
+            {
+              "label": "MP3",
+              "value": "mp3"
+            },
+            {
+              "label": "WAV",
+              "value": "wav"
+            },
+            {
+              "label": "AAC",
+              "value": "aac"
+            },
+            {
+              "label": "FLAC",
+              "value": "flac"
+            },
+            {
+              "label": "Opus",
+              "value": "opus"
+            }
           ]
         },
         {
