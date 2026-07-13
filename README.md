@@ -115,6 +115,7 @@ manggo-plugin/
 | `displayName` | string | 是 | 用户添加服务时看到的名称。 |
 | `entry` | string | 是 | `main.js` 中导出的入口函数名。 |
 | `main` | string | 否 | 服务专用入口脚本。省略时使用 `runtime.main`。 |
+| `resultType` | string | 否 | 仅用于翻译服务。`text` 表示普通文本，`dictionary` 表示结构化词典；默认是 `text`。 |
 | `icon` | string | 否 | 服务图标。省略时使用顶层 `icon`。 |
 | `permissions` | string[] | 否 | 服务权限，会和顶层权限合并。 |
 | `language` | object | 否 | Manggo 语言代码到插件/API 语言代码的映射。 |
@@ -218,7 +219,123 @@ export async function translate(text, from, to, options) {}
 | `options.setResult(chunk)` | 输出增量文本。 |
 | `options.utils` | Manggo 提供的工具对象。 |
 
-返回字符串即可。流式输出时可以多次调用 `options.setResult(delta)`。
+普通翻译服务返回字符串即可。流式输出时可以多次调用 `options.setResult(delta)`。
+
+### 返回结构化词典内容
+
+词典仍然属于翻译服务，因此 manifest 中的 `services[].kind` 必须是 `translation`，并应将 `resultType` 声明为 `dictionary`；`translate` 返回对象中的 `kind` 则使用 `dictionary`：
+
+```json
+{
+  "id": "dictionary",
+  "kind": "translation",
+  "displayName": "My Dictionary",
+  "entry": "translate",
+  "resultType": "dictionary",
+  "language": {
+    "auto": "auto",
+    "en_US": "en",
+    "zh_CN": "zh"
+  }
+}
+```
+
+`resultType` 用于预先将插件标记为词典服务，并保证服务临时返回普通文本时，朗读动作仍使用请求原文。Manggo 也会从结构化返回对象中识别词典内容，但 `resultType` 不会把普通字符串自动转换成词条；`translate` 需要最终 `return` 一个结构化对象。推荐使用以下与具体词典 API 无关的格式：
+
+```js
+export async function translate(text, from, to, options) {
+  // const response = await options.utils.fetch(...);
+  // const data = await response.json();
+
+  return {
+    kind: "dictionary",
+    dictionary: {
+      word: "hello",
+      language: "en_US",
+      pronunciations: [
+        {
+          label: "UK",
+          phonetic: "həˈləʊ",
+          audioUrl: "https://example.com/hello-uk.mp3",
+        },
+        {
+          label: "US",
+          phonetic: "həˈloʊ",
+        },
+      ],
+      meanings: [
+        {
+          partOfSpeech: "interjection",
+          translations: ["你好", "喂"],
+          definitions: ["Used as a greeting."],
+          extendedDefinitions: ["Used when meeting or calling someone."],
+          examples: ["Hello, world!"],
+          synonyms: ["hi"],
+          antonyms: ["goodbye"],
+          tags: ["spoken"],
+        },
+      ],
+      tags: ["common", "CET4"],
+      forms: [
+        { type: "plural", word: "hellos" },
+      ],
+      properties: [
+        { key: "source", label: "来源", value: "My Dictionary" },
+        { key: "frequency", label: "词频", value: "2238" },
+      ],
+      audioUrl: "https://example.com/hello.mp3",
+    },
+  };
+}
+```
+
+词条字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `word` | string | 原词，也是点击词典结果“朗读”时使用的文本。建议始终提供；省略时 Manggo 使用本次请求文本。 |
+| `language` | string | 原词语言，例如 `en_US`。朗读时作为语言提示；省略时 Manggo 使用检测出的源语言或请求源语言。 |
+| `pronunciations` | object[] | 一组音标和发音资源，可同时提供英式、美式等多种读音。 |
+| `meanings` | object[] | 按词性或义项组织的释义。 |
+| `tags` | string[] | 整个词条的标签，例如考试范围、使用频率或语域。 |
+| `forms` | object[] \| object | 词形变化。推荐使用 `{ type, word }[]`；也支持 `{ plural: ["hellos"] }` 形式。 |
+| `properties` | object[] \| object | 其他需要展示的词典信息。推荐使用 `{ key, label, value }[]`；`label` 是展示名，省略时使用 `key`，`value` 是展示值。 |
+| `audioUrl` | string | 整个词条保留的可选发音资源 URL。 |
+
+`pronunciations[]` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `label` | string | 读音标签，例如 `UK`、`US`。 |
+| `phonetic` | string | 音标内容；界面会按音标样式排版。 |
+| `audioUrl` | string | 为该读音保留的可选音频 URL。 |
+
+`meanings[]` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `partOfSpeech` | string | 词性，例如 `noun`、`verb`、`adj.`。 |
+| `translations` | string[] | 面向目标语言的简明释义。 |
+| `definitions` | string[] | 原文定义或基础定义。 |
+| `extendedDefinitions` | string[] | 扩展释义、详细说明。 |
+| `examples` | string[] | 例句。 |
+| `synonyms` | string[] | 同义词。 |
+| `antonyms` | string[] | 反义词。 |
+| `tags` | string[] | 当前义项的标签。 |
+
+`forms[].type` 建议使用稳定的英文键。Manggo 内置排版支持 `plural`、`past`、`past_participle`、`present_participle`、`third_person_singular`、`comparative`、`superlative`、`lemma` 和 `variant`；其他键会转换为可读标签后展示。
+
+Manggo 会按“原词、音标、词条标签、各组词性与释义、词形变化、其他词典信息”的顺序排版，并忽略空字段。点击结果卡片的朗读按钮时会通过当前语音服务朗读 `word`，不是翻译后的第一条释义。`audioUrl` 会作为结构化发音资源保留，但当前朗读按钮不会直接播放该 URL。
+
+为便于适配现有词典 API，也支持一些常见形态：
+
+- 可以直接返回词条对象，也可以使用 `{ dictionary: entry }` 包装；使用 `data` 包装时应返回 `{ kind: "dictionary", data: entry }`。结果类型标记也兼容 `type`、`resultType` 或 `result_type`，推荐统一使用 `kind: "dictionary"`。
+- 原词可使用 `word`、`headword`、`term`、`query` 或 `original`；音标集合可使用 `pronunciations` 或 `phonetics`。
+- 义项集合可使用 `meanings`、`senses`、`entries`、`results` 或 `parts`。常见的 `pos`、`translation`、`definition`、`detail`、`examples`、`synonyms`、`antonyms`、`tags` 等字段会被归一化。
+- 词形可使用 `forms`、`exchange`、`exchanges`、`inflections` 或 `wordForms`；附加信息可使用 `properties`、`metadata`、`attributes` 或 `additions`。
+- 支持有道风格的 `query + basic` 结果，以及 Bob 风格的 `toDict`、`fromParagraphs`、`toParagraphs` 结果。
+
+结构化词典对象必须作为 `translate` 的最终返回值。不要通过 `options.setResult()` 发送词典对象；该函数会把非字符串值序列化为增量文本，只适合普通文本翻译的流式输出。
 
 ## recognize 签名
 
