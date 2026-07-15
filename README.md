@@ -1,5 +1,9 @@
 # Manggo 原生插件示例：OpenAI Translation / OCR / TTS
 
+## 发布插件
+
+将插件发布到 GitHub 仓库后，为仓库添加 `manggo-plugin` 话题标签，即可被 Manggo 插件列表索引。
+
 这个目录是一个完整的 Manggo 原生插件示例。安装后，你可以在 Manggo 里添加三个服务：
 
 - `OpenAI Compatible Translator`：调用 OpenAI 兼容 `/chat/completions` 做翻译。
@@ -223,7 +227,7 @@ export async function translate(text, from, to, options) {}
 
 ### 返回结构化词典内容
 
-词典仍然属于翻译服务，因此 manifest 中的 `services[].kind` 必须是 `translation`，并应将 `resultType` 声明为 `dictionary`；`translate` 返回对象中的 `kind` 则使用 `dictionary`：
+词典仍然属于翻译服务，因此 manifest 中的 `services[].kind` 必须是 `translation`，并且必须将 `resultType` 声明为 `dictionary`；`translate` 返回对象中的 `kind` 则使用 `dictionary`：
 
 ```json
 {
