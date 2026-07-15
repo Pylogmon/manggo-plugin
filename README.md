@@ -114,7 +114,7 @@ manggo-plugin/
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `id` | string | 是 | 插件内部服务 ID。 |
-| `kind` | string | 是 | `translation`、`ocr`、`speech`。 |
+| `kind` | string | 是 | `translation`、`ocr`、`speech`、`wordbook`。 |
 | `providerId` | string | 否 | 服务提供方 ID。省略时 Manggo 生成 `插件ID#服务ID`。 |
 | `displayName` | string | 是 | 用户添加服务时看到的名称。 |
 | `entry` | string | 是 | `main.js` 中导出的入口函数名。 |
@@ -132,6 +132,7 @@ manggo-plugin/
 | `translation` | 翻译 | `translate(text, from, to, options)` |
 | `ocr` | 图片文字识别 | `recognize(base64, language, options)` |
 | `speech` | 文本转语音 | `tts(text, language, options)` |
+| `wordbook` | 添加生词 | `add(request, options)` |
 
 ## config[] 字段
 
@@ -193,6 +194,10 @@ export async function recognize(base64, language, options) {
 export async function tts(text, language, options) {
   return new Uint8Array([/* audio bytes */]);
 }
+
+export async function add(request, options) {
+  return { success: true };
+}
 ```
 
 也支持默认导出对象：
@@ -202,6 +207,7 @@ export default {
   translate,
   recognize,
   tts,
+  add,
 };
 ```
 
@@ -393,6 +399,77 @@ return { bytes: new Uint8Array(bytes), format: "wav" };
 ```
 
 对象里可以使用 `base64`、`data`、`audio`、`bytes` 放音频内容；可以使用 `format`、`audioFormat`、`responseFormat`、`mimeType`、`contentType` 告诉 Manggo 音频格式。
+
+## add（生词本）签名
+
+原生插件通过 `wordbook` 服务接入 Manggo 的生词本。服务声明示例：
+
+```json
+{
+  "id": "wordbook",
+  "kind": "wordbook",
+  "displayName": "My Wordbook",
+  "entry": "add",
+  "permissions": ["network"],
+  "config": [
+    {
+      "key": "endpoint",
+      "label": "Endpoint",
+      "control": "text",
+      "required": true
+    },
+    {
+      "key": "token",
+      "label": "Token",
+      "control": "password",
+      "required": true,
+      "secret": true
+    }
+  ]
+}
+```
+
+入口函数必须使用 ES module 导出：
+
+```js
+export async function add(request, options) {}
+```
+
+`request` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `sourceText` | string | 原文，已经去除首尾空白。 |
+| `translatedText` | string | 普通翻译的译文；词典结果中各义项的 `translations` 会合并为换行分隔的文本。 |
+| `sourceLanguage` | string | Manggo 源语言代码；词典结果未提供请求源语言时，会使用词条的 `dictionary.language`。 |
+| `targetLanguage` | string | Manggo 目标语言代码。 |
+| `translationResult` | string \| object | 完整翻译结果。普通翻译为字符串，词典翻译为上文定义的 `{ kind: "dictionary", dictionary: { ... } }`。 |
+
+`options.config` 包含当前生词本服务的用户配置，`options.utils` 与其他原生服务相同。完整示例：
+
+```js
+export async function add(request, { config, utils }) {
+  const response = await utils.fetch(config.endpoint, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${config.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Wordbook request failed: HTTP ${response.status}`);
+  }
+
+  return {
+    success: true,
+    message: "Added to wordbook.",
+  };
+}
+```
+
+成功时可以不返回值、返回 `true`、返回提示字符串，或返回 `{ success: true, message: "..." }`。失败时抛出异常、返回 `false`，或返回 `{ success: false, message: "..." }`；也可以用 `ok` 代替 `success`，或通过 `error` 返回错误信息。
 
 ## options.utils
 
