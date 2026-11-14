@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "com.manggo.examples.openai-compatible-services",
   "name": "OpenAI Compatible Translation, OCR and TTS",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A Manggo native plugin example that provides OpenAI-compatible translation, OCR, and OpenAI text-to-speech services.",
   "author": "Manggo",
   "homepage": "https://github.com/pylogmon/manggo-plugin",
@@ -11,7 +11,7 @@
     "network"
   ],
   "runtime": {
-    "kind": "bun",
+    "kind": "moejs",
     "api": "manggo.plugin.v1",
     "main": "main.js"
   },
