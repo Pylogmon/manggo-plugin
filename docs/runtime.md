@@ -1,7 +1,7 @@
 # moejs 运行时能力与边界
 
-Manggo 内置 moejs 运行环境，安装插件无需额外安装 Bun 或 Node.js。新原生插件使用
-`runtime.kind:"moejs"` 和 `manggo.plugin.v1`；旧清单中的 `kind:"bun"` 仍可安装。
+Manggo 内置 moejs 运行环境，安装插件无需额外安装 Bun 或 Node.js。原生插件使用
+`runtime.kind:"moejs"` 和 `manggo.plugin.v1`；`kind:"bun"` 是可接受的兼容声明，同样使用 moejs。
 
 本页帮助插件作者选择可用 API、准备依赖并处理运行限制。Manggo 提供的是适合插件的
 JavaScript 环境，不包含完整的 Node、Bun 或浏览器 API。
@@ -15,10 +15,63 @@ JavaScript 环境，不包含完整的 Node、Bun 或浏览器 API。
 - 动作预检查与动作执行分别调用，不共享变量。预检查最多 **500 ms**，禁止网络、文件写入和桌面操作。
   模块顶层代码也要满足这些限制；把必要的请求和写入放在执行入口中。
 
+入口的 `options.signal` 是本次请求的 `AbortSignal`，可传给 Fetch 并监听取消：
+
+```js
+const response = await options.utils.fetch(options.config.endpoint, {
+  method: "POST",
+  body: JSON.stringify({text}),
+  signal: options.signal
+});
+```
+
+翻译上下文 `options.query` 包含 `text`、预处理前的 `originalText`，以及映射后的
+`from`、`to`、`detectFrom`、`detectTo`。其他服务继续使用各自入口的图片、语言和请求参数。
+已经通过动作启动的桌面应用可以继续运行；请求取消会阻止后续操作。
+
+## 宿主信息与能力
+
+公共 API 可从全局 `manggo` 或入口的 `options.manggo` 读取，包含：
+
+| 成员 | 用途 |
+| --- | --- |
+| `env.appVersion` | 当前 Manggo 应用版本。 |
+| `env.apiVersion` | 当前宿主接口版本 `1.1`；清单协议使用 `manggo.plugin.v1`。 |
+| `env.engine` / `env.engineVersion` | JavaScript 引擎名称与版本。 |
+| `env.platform` / `env.arch` | 当前平台 `darwin`、`windows` 或 `linux`，以及处理器架构。 |
+| `env.capabilities` | 支持的接口能力列表，可用于特性检测。 |
+| `log.debug/info/warn/error` | 向当前插件的诊断记录输出日志。 |
+| `ServiceError` | 构造带类型、用户提示及排障链接的错误。 |
+
+`env` 及其中的能力列表只读。可在清单 `requires.capabilities` 声明以下名称：
+
+| 能力名称 | 支持内容 |
+| --- | --- |
+| `runtime.info` | 宿主环境与能力查询。 |
+| `runtime.log` | 插件日志及诊断入口。 |
+| `service.validate` | 配置验证函数。 |
+| `service.errors` | 结构化错误。 |
+| `translation.context` | 翻译原文、语言和取消上下文。 |
+| `translation.structured` | 译文格式、独立思考内容与附带音频。 |
+| `config.shared` | 插件级共享设置。 |
+| `desktop.openURI` | 打开已注册的应用协议。 |
+| `desktop.openPath` | 使用默认应用打开本地路径。 |
+| `desktop.reveal` | 在文件管理器定位路径。 |
+| `desktop.launch` | 按绝对路径和参数数组启动应用。 |
+
+能力检测说明接口是否存在；桌面动作还须在顶层或服务级 `permissions` 中声明同名权限。
+预检查不提供 `options.manggo`，不能进行桌面操作；可通过全局 `manggo` 查询环境或记录日志。
+配置验证只提供公共 API。配置、自检、错误及动作示例见 [开发指南](../README.md)。
+
+原生环境支持 `console.log/debug/info/warn/error`，与 `manggo.log` 使用同一诊断记录。
+用户可在插件管理中打开“诊断”查看加载、预检查和执行错误。日志只保留在当前应用进程中，
+不随遥测上传。不要把密钥、完整用户文本或接口原始响应写入日志。
+
 ## 模块与依赖
 
-新原生插件推荐使用 `.js` / `.mjs` 的 ESM，支持命名导出、默认导出对象、动态 `import()`
-和顶层 `await`。导出函数名称必须与清单中的 `entry` / `precheck` 一致。
+原生插件推荐使用 `.js` / `.mjs` 的 ESM，支持命名导出、默认导出对象、动态 `import()`
+和顶层 `await`。导出函数名称必须与清单中的 `entry` / `precheck` / `validate` 一致；
+省略 `validate` 时，可直接导出同名的可选验证函数。
 
 - 使用相对路径导入包内模块；也支持 `/package/` 路径、包内 `file:` URL 和 JSON 模块。
 - `.cjs` 支持 CommonJS 的包内 `require`、JSON 和循环引用；CommonJS 不能 `require` ESM，可改用 `import()`。
@@ -41,7 +94,8 @@ JavaScript 环境，不包含完整的 Node、Bun 或浏览器 API。
 
 `fs.chmod` 仅能修改私有普通文件/目录的受限权限，不能授予执行权限。
 `process` 只提供只读 `pid` 供临时文件命名，不提供环境变量、cwd、退出或进程控制。
-不支持 `child_process`、原始 TCP/UDP、Node 原生扩展或任意系统命令。
+不提供 `child_process`、原始 TCP/UDP、Node 原生扩展或 shell 命令执行。
+需要启动已配置的桌面应用时，使用声明权限的 `options.manggo.launchApplication(path,args)`。
 
 ## Web API 与网络
 
@@ -55,7 +109,7 @@ JavaScript 环境，不包含完整的 Node、Bun 或浏览器 API。
 
 WebSocket 支持文本、ArrayBuffer/typed array、Blob、子协议和关闭事件。
 默认 `binaryType` 为 `nodebuffer`，也可设置 `arraybuffer` 或 `blob`。
-构造器不支持 Bun 专属的自定义 headers/options；旧 Bob 插件可使用自己的 `$websocket` 接口。
+构造器不支持 Bun 专属的自定义 headers/options；Bob 插件可使用自己的 `$websocket` 接口。
 
 不提供 `window`、`document`、DOM、Canvas、浏览器存储或页面渲染。
 全局 `crypto` 仅提供随机数/UUID 子集；不要假定存在完整 `crypto.subtle`。
@@ -84,8 +138,14 @@ if (await resource.exists()) {
 
 ## 原生、Bob 与 Pot API
 
-原生 `PluginUtils` 提供 fetch、文件读取、目录、系统类型与结果回调；
-只有动作执行入口提供 `options.manggo` 的复制、替换和打开网页操作。
+原生 `PluginUtils` 提供 fetch、文件读取、目录、系统类型与结果回调。
+常规入口的 `options.manggo` 提供环境、日志和结构化错误；动作执行入口还提供复制、替换、
+打开网页、应用协议、本地路径、文件定位和应用启动。动作的权限与用法见
+[划词动作](../README.md#划词动作)。
+
+多个服务或动作需要共享地址、密钥或软件路径时，在清单顶层声明 `config`，由
+`options.sharedConfig` 读取；数据缓存仍使用 `/data`。原生环境不提供 `bun:sqlite`，
+不能直接读取 Manggo 设置或其他插件的文件。
 
 Bob 的 `$http`、`$data`、`$file` 等，以及 Pot 的 `http`、`Body`、`Database`、`run`、
 CryptoJS 等额外 API，只适用于对应包格式。支持范围与开发注意事项见 [Bob / Pot 兼容说明](compatibility.md)。
@@ -99,11 +159,16 @@ CryptoJS 等额外 API，只适用于对应包格式。支持范围与开发注�
 | 清单 / 单个脚本文件 | 1 MiB / 8 MiB。 |
 | 单个常规文件 | 16 MiB。 |
 | 服务 JSON 结果 / 文本更新累计 | 各 8 MiB。 |
+| 结构化译文快照更新 | 单次 8 MiB，每次请求的更新累计 64 MiB。 |
 | HTTP 请求体或响应体 | 每个 64 MiB。 |
 | WebSocket | 单消息 1 MiB；每个连接的收发累计分别 64 MiB。 |
 | OCR 图片输入 / 音频输出 | 各 64 MiB，另受图像格式与服务限制。 |
 | OCR 文字区域 | 每次 10,000 个区域，每区 3–64 个点。 |
 | 动作预检查 | 500 ms；普通调用使用应用中配置的总超时。 |
+| 插件日志 | 每条 4 KiB，每次请求共 64 KiB；每插件最多保留最近 64 条记录。 |
+| 结构化错误 | type 最多 64 字节，message 和 addition 各 4 KiB，排障链接最多 2048 字节。 |
+| 本地路径 / 应用协议地址 | 分别最多 4096 / 32767 字节；仍受操作系统限制。 |
+| 应用启动参数 | 最多 256 个参数，共 1 MiB；操作系统可有更低限制。 |
 
 发布前请在 Manggo 中安装生成的 `.mplugin`，检查每种服务的配置、正常结果、网络错误和取消行为。
 本地开发工具中的成功运行不能代替在 Manggo 中的实际验证。

@@ -3,7 +3,7 @@
 Manggo 支持安装 `.bobplugin` 和 `.potext`，用户可以直接在插件管理中选择原包，
 再添加对应服务并填写配置。运行环境已内置，无需另装 Bun。
 
-本文列出用户和插件作者可以依赖的兼容范围。编写新的原生插件请使用
+本文列出用户和插件作者可以依赖的兼容范围。编写原生插件请使用
 [开发指南](../README.md) 与 [SDK](../sdk/manggo-plugin.d.ts)；Bob / Pot 的额外 API 不属于原生 `PluginUtils`。
 
 ## Bob
@@ -23,12 +23,15 @@ Manggo 支持安装 `.bobplugin` 和 `.potext`，用户可以直接在插件管�
 | `$timer` / `$signal` | 秒级 schedule/invalidate；send/subscribe/dispose/removeAllSubscriber。 |
 | `$websocket` | 请求头、子协议、握手超时、显式自签名选项；文本/二进制消息、ping/pong、关闭码/原因和 readyState。 |
 | 工具与加密 | `$util`、`require("crypto-js")` 及子模块；CryptoJS 4.2.0 的 hash/HMAC、AES、mode、padding 和 KDF。 |
-| 翻译结果 | `toParagraphs`、`toDict`、Bob 1.21 `content.text`，包括 Markdown；支持流式更新与最终结果。 |
+| 翻译结果 | `toParagraphs`、`toDict`、Bob 1.21 `content.format/text`；支持流式更新、最终结果、独立的 `thinkInfo` 与附带的 `toTTS` 音频。 |
 | OCR 结果 | `texts`、`regionInfos` / `paragraphInfos`、`boundingBox.points` 和图像尺寸；有坐标时可用于图片选字，纯文本结果也可用。 |
 | TTS | `$data`、字节、Base64 和可访问的音频 URL。 |
+| 配置验证 | `pluginValidate(completion)` 接入 Manggo 编辑界面的“测试连接”，使用当前配置草稿。 |
+| 错误与日志 | 保留 `service error` 的类型、提示、排障链接及调试信息；`$log` 可在插件“诊断”中查看。 |
 
-`$env` 声明 1.21.0 API。回调只对本次请求有效；完成或取消后，不应继续提交结果。
-服务的启用、配置和总超时在 Manggo 中设置。Bob 专属的偏好设置验证按钮和 appcast 自动更新不在 Manggo 中提供。
+`$env` 的 Bob 兼容版本为 1.21.0；其中的 `$env.manggo` 提供实际 Manggo 版本和运行环境。
+回调只对本次请求有效；完成或取消后，不应继续提交结果。服务的启用、配置和总超时在
+Manggo 中设置。没有验证函数时，“测试连接”使用示例请求；appcast 自动更新不在 Manggo 中提供。
 
 ## Pot
 
