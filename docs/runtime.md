@@ -107,13 +107,26 @@ const response = await options.utils.fetch(options.config.endpoint, {
 `fetch` 和 `utils.fetch` 遵循 Manggo 的代理、证书与取消设置；访问网络时在清单声明 `network`。
 本地服务可使用明确的 HTTP(S) endpoint，读取文件则使用文件 API。
 
-WebSocket 支持文本、ArrayBuffer/typed array、Blob、子协议和关闭事件。
-默认 `binaryType` 为 `nodebuffer`，也可设置 `arraybuffer` 或 `blob`。
-构造器不支持 Bun 专属的自定义 headers/options；Bob 插件可使用自己的 `$websocket` 接口。
-
 不提供 `window`、`document`、DOM、Canvas、浏览器存储或页面渲染。
 全局 `crypto` 仅提供随机数/UUID 子集；不要假定存在完整 `crypto.subtle`。
 未列出的 ECMAScript/Intl 行为和第三方库仍需在实际插件中验证。
+
+### WebSocket 请求头
+
+原生插件可以在建立 WebSocket 连接时发送自定义请求头，例如把用户在插件配置中填写的 API 密钥放进 `Authorization`。
+
+```js
+const socket = new WebSocket(options.config.endpoint, {
+  headers: { Authorization: `Bearer ${options.config.apiKey}` },
+});
+```
+
+`headers` 接受普通对象、`Headers` 实例或 `[名称, 值]` 列表。服务要求子协议时，在同一个选项对象中添加
+`protocols`，传入一个子协议名或字符串列表。WebSocket 连接使用 Manggo 的代理和证书设置。
+
+WebSocket 支持文本、ArrayBuffer/typed array、Blob、子协议和关闭事件。
+默认 `binaryType` 为 `nodebuffer`，也可设置 `arraybuffer` 或 `blob`。
+TypeScript 写法见 [SDK 指南](../README.md#typescript-与-sdk)。
 
 ## 文件与 Bun 兼容子集
 

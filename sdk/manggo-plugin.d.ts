@@ -62,6 +62,19 @@ export interface PluginQuery {
   readonly detectTo: string;
 }
 
+/** Connection options for the WebSocket constructor in native plugins. */
+export interface PluginWebSocketOptions {
+  /** Headers sent when opening the connection. */
+  headers?: HeadersInit;
+  /** Subprotocols offered to the server. */
+  protocols?: string | Iterable<string>;
+}
+
+/** Type for the global WebSocket constructor when using connection options. */
+export type PluginWebSocketConstructor = typeof globalThis.WebSocket & {
+  new (url: string | URL, options: PluginWebSocketOptions): WebSocket;
+};
+
 /** Shared native utilities. setResult is the same callback as options.setResult. */
 export interface PluginUtils<StreamResult = string> {
   /** Uses the application's network settings. */

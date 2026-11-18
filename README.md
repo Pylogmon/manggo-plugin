@@ -443,6 +443,22 @@ export const run = (text, {manggo}) => manggo.copyToClipboard(text);
 | `PluginManifest` / `PluginService` / `PluginConfigField` | 原生清单与配置表单。 |
 
 `tsconfig.json` 使用包含 `ES2022`、`DOM` 的 `lib`，为 Fetch 等 Web API 提供类型。
+
+使用自定义请求头时，可用 SDK 的 `PluginWebSocketConstructor` 标注 `WebSocket` 构造器。
+[WebSocket 请求头用法](docs/runtime.md#websocket-请求头)
+
+```ts
+import type { PluginWebSocketConstructor } from "./sdk/manggo-plugin";
+
+const ManggoWebSocket = WebSocket as PluginWebSocketConstructor;
+
+function connect(endpoint: string, apiKey: string) {
+  return new ManggoWebSocket(endpoint, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+}
+```
+
 发布前由开发工具把 TypeScript 编译/打包为 JavaScript，清单指向生成的 `.js`；
 发布包不支持直接使用 `.ts` 源码，也不会在安装时执行 npm 安装或 TypeScript 构建。
 SDK 只描述原生服务契约；完整 Node/Bun 类型包中的其他声明不代表宿主支持相应 API。
