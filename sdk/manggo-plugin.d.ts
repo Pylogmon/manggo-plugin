@@ -44,11 +44,43 @@ export interface PluginLogger {
   error(...values: unknown[]): void;
 }
 
+export type SQLiteParameter = string | number | boolean | null | ArrayBuffer | Uint8Array;
+export type SQLiteRow = Record<string, string | number | null | ArrayBuffer>;
+
+/** A connection scoped to the current invocation. BLOB columns are ArrayBuffers. */
+export interface SQLiteDatabase {
+  query<Row extends object = SQLiteRow>(statement: string, parameters?: readonly SQLiteParameter[]): Promise<Row[]>;
+  close(): Promise<void>;
+}
+
+export interface SQLiteWriteResult {
+  changes: number;
+  lastInsertRowid: number;
+}
+
+export interface SQLiteWritableDatabase extends SQLiteDatabase {
+  execute(statement: string, parameters?: readonly SQLiteParameter[]): Promise<SQLiteWriteResult>;
+}
+
+export interface SQLiteOpenOptions {
+  /** Defaults to readOnly. readWrite uses bundled data to initialize a private database on first open. */
+  mode?: "readOnly" | "readWrite";
+}
+
+/** Relative paths address bundled files. /data/ paths address plugin-private databases. */
+export interface SQLiteAPI {
+  open(path: string, options: { mode: "readWrite" }): Promise<Readonly<SQLiteWritableDatabase>>;
+  open(path: string, options?: { mode?: "readOnly" }): Promise<Readonly<SQLiteDatabase>>;
+  open(path: string, options: SQLiteOpenOptions): Promise<Readonly<SQLiteDatabase | SQLiteWritableDatabase>>;
+}
+
 /** Common native API. Available in options except action prechecks. */
 export interface HostAPI {
   readonly env: Readonly<PluginEnvironment>;
   readonly log: Readonly<PluginLogger>;
   readonly ServiceError: new (type: string, message: string, options?: ServiceErrorOptions) => ServiceError;
+  /** Native SQLite support `sqlite`. Action prechecks can only open read-only connections. */
+  readonly sqlite: Readonly<SQLiteAPI>;
 }
 
 /** Translation languages have already passed through the service language map. */
@@ -180,8 +212,20 @@ export interface StructuredTranslationResult {
 
 export type TranslationResult = string | DictionaryResult | StructuredTranslationResult;
 
+export interface GlossaryTerm {
+  readonly source: string;
+  readonly target: string;
+}
+
+export interface PluginGlossary {
+  /** All enabled terms for this request's language pair when the service declares glossary: true. */
+  getTerms(): readonly GlossaryTerm[];
+}
+
 /** Strings append deltas; structured values are authoritative snapshots. */
-export type TranslationOptions<Config extends object = PluginConfig, SharedConfig extends object = PluginConfig> = PluginOptions<string | StructuredTranslationResult, Config, SharedConfig>;
+export interface TranslationOptions<Config extends object = PluginConfig, SharedConfig extends object = PluginConfig> extends PluginOptions<string | StructuredTranslationResult, Config, SharedConfig> {
+  readonly glossary: Readonly<PluginGlossary>;
+}
 
 /**
  * Text deltas take precedence over a returned string when any text was emitted.
@@ -414,6 +458,8 @@ export type PluginService = PluginServiceBase & (
       kind: "translation";
       /** Defaults to text; dictionaries and rich translations declare their respective type. */
       resultType?: "text" | "dictionary" | "structured";
+      /** Pass terms to the plugin so it can apply them using its own translation service. */
+      glossary?: boolean;
       /** Package-relative artwork; defaults to the manifest icon. */
       icon?: string;
     }

@@ -8,8 +8,7 @@ Manggo 原生插件可以扩展翻译、OCR、语音合成、生词本服务和�
 [兼容说明](docs/compatibility.md)。
 
 当前 SDK 描述原生宿主 API **1.1**，清单中的 `runtime.api` 使用 `manggo.plugin.v1`。
-通过清单 `requires.capabilities` 声明所需接口；宿主环境、日志、验证入口和
-桌面动作均由本仓库统一说明和定义。
+通过清单 `requires.capabilities` 声明所需接口，包括 SQLite、翻译术语库、配置验证和桌面动作。
 
 本文只描述 Manggo 原生插件格式：
 
@@ -36,6 +35,8 @@ Manggo 原生插件可以扩展翻译、OCR、语音合成、生词本服务和�
 - [本仓库示例](#本仓库示例)
 
 ## 快速开始
+
+在 Manggo 中安装和调用插件需要 Pro 授权。
 
 最小目录结构：
 
@@ -166,6 +167,7 @@ zip -r my-translator.mplugin manggo.plugin.json main.js icon.png
 | `precheck` | string | 否 | action 的预检函数名；返回严格布尔值 `true` 时才显示。 |
 | `main` | string | 否 | 服务专用入口脚本；省略时使用 `runtime.main`。 |
 | `resultType` | string | 否 | 仅用于翻译服务，可为 `text`、`dictionary` 或 `structured`，默认 `text`。 |
+| `glossary` | boolean | 否 | 翻译服务设为 `true` 后，插件负责将本次请求的术语用于翻译。见 [术语库](#术语库)。 |
 | `icon` | string | 否 | 普通服务图标；省略时使用顶层 `icon`。 |
 | `iconName` | string | 否 | action 使用的 Material Symbols Rounded 图标名，默认 `extension`；按名称从完整目录选择。 |
 | `enabledByDefault` | boolean | 否 | action 安装后是否默认启用，默认 `true`。 |
@@ -314,7 +316,8 @@ export function validate({config, manggo}) {
 `{result:false,error:{type,message,troubleshootingLink?}}`。单独返回 `false` 会显示通用验证失败。
 
 省略清单 `validate` 时，宿主先尝试可选的 `validate` 导出；未找到时，翻译/OCR/TTS
-沿用示例请求，动作只检查入口模块能否加载，不执行动作。测试配置不会保存草稿。
+沿用示例请求，动作只检查入口模块能否加载。插件生词本的“测试连接”需要自定义 `validate`。
+测试配置不会保存草稿。
 
 ## JavaScript 运行时
 
@@ -356,11 +359,12 @@ export default {
 | `options.sharedConfig` | 当前清单声明的插件级共享字段及其默认值。 |
 | `options.detect` | 翻译请求映射后的检测语言，缺失时回退到 `from`；其他服务为空字符串。 |
 | `options.query` | 只读调用上下文；翻译时包含 `text`、`originalText`、`from`、`to`、`detectFrom` 和 `detectTo`。 |
+| `options.glossary` | 翻译入口的只读术语接口，通过 `getTerms()` 读取。 |
 | `options.signal` | 本次调用的 `AbortSignal`，可传给 Fetch 并监听取消。 |
 | `options.setResult(value)` | 服务专属结果回调，具体规则见下表。 |
 | `options.utils` | Manggo 提供的运行时工具。 |
 | `options.image` | 仅 OCR 可用；只读的 `pixelWidth` / `pixelHeight`，对应实际输入 PNG。 |
-| `options.manggo` | 公共宿主 API：`env`、`log`、`ServiceError`；动作执行入口还增加桌面操作，预检查不提供此字段。 |
+| `options.manggo` | 公共宿主 API 包含 `env`、`log`、`ServiceError` 和 `sqlite`。动作执行时还提供桌面操作。 |
 
 `options.setResult()` 与 `options.utils.setResult()` 是同一函数，行为随服务变化：
 
@@ -396,7 +400,8 @@ export default {
 需要访问随插件分发的文件时，使用 `utils.pluginDir` 构造路径；需要写入运行数据时，使用 `utils.cacheDir`，不要写入插件安装目录。
 
 写文件可使用受限的 `Bun.write` 或 `node:fs/promises`，目标路径应位于插件私有数据目录。
-`utils.run`、`utils.Database` 和 `utils.CryptoJS` 属于 Pot 兼容层，原生插件没有这些字段。
+原生插件通过 `manggo.sqlite` 读取随包分发的数据库或维护插件私有数据库。
+只读查询与读写示例见 [SQLite](docs/runtime.md#sqlite)。Pot 插件通过 `utils.Database` 使用数据库。
 网络、文件与全局 API 的具体范围见 [运行时能力](docs/runtime.md)。
 
 ## TypeScript 与 SDK
@@ -433,6 +438,7 @@ export const run = (text, {manggo}) => manggo.copyToClipboard(text);
 | 类型 | 用途 |
 | --- | --- |
 | `Translate` / `TranslationOptions` / `TranslationResult` | 文本、词典和结构化译文。 |
+| `GlossaryTerm` / `PluginGlossary` | 翻译入口读取的术语。 |
 | `StructuredTranslationResult` / `TranslationAudio` | 译文格式、独立思考内容及附带语音。 |
 | `Recognize` / `OCROptions` / `OCRResult` | OCR 文字、图像尺寸、区域坐标。 |
 | `Speak` / `SpeechOptions` / `SpeechResult` / `SpeechCandidate` | 语音返回值与可序列化候选结果。`Speak` 类型也适用于名为 `tts` 的入口。 |
@@ -440,6 +446,7 @@ export const run = (text, {manggo}) => manggo.copyToClipboard(text);
 | `RunAction` / `PrecheckAction` / `SelectionActions` | 动作执行、只读预检查与宿主操作。 |
 | `ValidateConfig` / `ValidationOptions` / `ValidationResult` | 未保存配置的自定义验证。 |
 | `HostAPI` / `PluginEnvironment` / `PluginQuery` / `ServiceErrorDetails` | 宿主信息、调用上下文和结构化错误。 |
+| `SQLiteAPI` / `SQLiteDatabase` / `SQLiteWritableDatabase` | SQLite 开库、参数化查询和写入。 |
 | `PluginManifest` / `PluginService` / `PluginConfigField` | 原生清单与配置表单。 |
 
 `tsconfig.json` 使用包含 `ES2022`、`DOM` 的 `lib`，为 Fetch 等 Web API 提供类型。
@@ -514,6 +521,22 @@ export async function translate(text, from, to, options) {
 | `options.detect` | Manggo 检测出的源语言，已经过映射。 |
 
 返回翻译字符串。流式接口多次调用 `options.setResult(delta)` 时只发送新增片段；已有非空文本流后，宿主以这些片段的拼接作为结果，返回的完整字符串不会覆盖文本流。没有文本流时采用返回字符串。
+
+### 术语库
+
+翻译服务可以声明 `glossary: true`，并在顶层的 `requires.capabilities` 中添加
+`"translation.glossary"`。在翻译入口通过 `options.glossary.getTerms()` 同步读取
+本次源语言到目标语言方向的全部启用术语。每项包含原词 `source` 和译词 `target`。
+数组和条目都是只读的。术语库关闭、语言尚未确定或该方向没有启用术语时，返回空数组。
+
+```js
+const terms = options.glossary.getTerms();
+const body = JSON.stringify({text, from, to, glossary: terms});
+```
+
+启用后，插件收到待译文本和术语，可按上游接口要求把术语传给后端，或写入模型提示。
+服务未声明 `glossary: true` 时，`getTerms()` 返回空数组，普通翻译可能收到按术语库替换后的文本。
+预处理前的原文可通过 `options.query.originalText` 读取。词典查找使用原查询词，返回普通译文时适用文本翻译的术语规则。
 
 ### 结构化译文
 
@@ -927,7 +950,7 @@ Manggo 在每次读取到新的选区后，对当前已启用且声明了 `prech
 - 只有最终返回值为严格布尔值 `true` 时，动作才会在本次划词弹窗中显示。
 - 返回 `false`、其他类型、不返回值或抛出异常时，本次不显示该动作。
 - `precheck` 可以返回 `Promise<boolean>`，但应尽量保持快速、确定且无副作用。
-- `precheck` 不提供 `options.manggo`，不能复制、替换文本或打开浏览器。
+- `precheck` 不提供 `options.manggo`，不能复制、替换文本或打开浏览器。可通过全局 `manggo.sqlite` 进行只读查询。
 - 预检最多运行 500 ms，禁止网络和文件写入；预检与动作执行不共享变量。模块顶层代码也要满足预检限制。
 
 预检是“本次选区是否显示”的判断，不会改变用户在动作列表中的启用状态。没有声明 `precheck` 的已启用动作会直接显示。
@@ -1069,7 +1092,8 @@ Manggo 会替换当前配置中已识别的密钥，插件也应主动避免输�
 
 ## 打包、安装与发布
 
-`.mplugin` 是 zip 文件，`manggo.plugin.json` 必须位于压缩包根目录：
+`.mplugin` 是 ZIP 文件。安装器也接受 `.zip`。将 `manggo.plugin.json` 放在压缩包根目录
+或唯一包含清单的顶层目录。打包大型 SQLite 词库时可以使用 ZIP64。
 
 ```text
 my-plugin.mplugin
@@ -1086,6 +1110,9 @@ mkdir -p dist
 zip -r dist/my-plugin.mplugin manggo.plugin.json main.js icon.png assets
 ```
 
+使用相同插件 ID 覆盖安装时，Manggo 会更新包内容，原有的服务实例和私有数据仍按 ID 保留。
+保留已发布的服务类型、服务 ID 和提供方 ID，已配置的实例就能找到对应入口。
+
 发布前建议完成以下检查：
 
 1. `manifestVersion`、`runtime.kind` 和 `runtime.api` 使用受支持的值。
@@ -1094,7 +1121,7 @@ zip -r dist/my-plugin.mplugin manggo.plugin.json main.js icon.png assets
 4. 在 Manggo 中安装插件，实际添加、配置和调用每种普通服务，并在划词助手中验证 action 的启停、预检和执行。
 5. 修改内容后更新插件版本并重新打包。
 
-将插件发布到 GitHub 后，可以为仓库添加 `manggo-plugin` 话题标签，使其能够被 Manggo 插件列表索引。
+在 GitHub 仓库添加 `manggo-plugin` 话题标签，用户可从 Manggo 的“下载插件”入口打开该话题页。
 
 插件依赖必须提前构建并随包分发；用户安装时不会下载 Node、Bun 或 npm 包。第三方库应优先选择
 纯 JavaScript、无 DOM 且只依赖已支持宿主 API 的实现，并在 Manggo 中验证。

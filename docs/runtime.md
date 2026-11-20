@@ -42,6 +42,7 @@ const response = await options.utils.fetch(options.config.endpoint, {
 | `env.capabilities` | 支持的接口能力列表，可用于特性检测。 |
 | `log.debug/info/warn/error` | 向当前插件的诊断记录输出日志。 |
 | `ServiceError` | 构造带类型、用户提示及排障链接的错误。 |
+| `sqlite` | 打开插件包内的只读数据库和插件私有的可写数据库。详见 [SQLite](#sqlite)。 |
 
 `env` 及其中的能力列表只读。可在清单 `requires.capabilities` 声明以下名称：
 
@@ -53,14 +54,16 @@ const response = await options.utils.fetch(options.config.endpoint, {
 | `service.errors` | 结构化错误。 |
 | `translation.context` | 翻译原文、语言和取消上下文。 |
 | `translation.structured` | 译文格式、独立思考内容与附带音频。 |
+| `translation.glossary` | 通过 `options.glossary.getTerms()` 读取本次翻译的术语。 |
 | `config.shared` | 插件级共享设置。 |
+| `sqlite` | 原生 SQLite API。 |
 | `desktop.openURI` | 打开已注册的应用协议。 |
 | `desktop.openPath` | 使用默认应用打开本地路径。 |
 | `desktop.reveal` | 在文件管理器定位路径。 |
 | `desktop.launch` | 按绝对路径和参数数组启动应用。 |
 
 能力检测说明接口是否存在；桌面动作还须在顶层或服务级 `permissions` 中声明同名权限。
-预检查不提供 `options.manggo`，不能进行桌面操作；可通过全局 `manggo` 查询环境或记录日志。
+预检查不提供 `options.manggo`。通过全局 `manggo` 可以查询环境、记录日志或执行 SQLite 只读查询。
 配置验证只提供公共 API。配置、自检、错误及动作示例见 [开发指南](../README.md)。
 
 原生环境支持 `console.log/debug/info/warn/error`，与 `manggo.log` 使用同一诊断记录。
@@ -104,7 +107,8 @@ const response = await options.utils.fetch(options.config.endpoint, {
 `Blob`、`File`、`FormData`、`WebSocket`，以及 Promise 和定时器。
 支持文件上传、字节读取、切片、重复表单字段和流式响应。
 
-`fetch` 和 `utils.fetch` 遵循 Manggo 的代理、证书与取消设置；访问网络时在清单声明 `network`。
+`fetch` 和 `utils.fetch` 遵循 Manggo 的代理、证书与取消设置。访问网络时在清单声明 `network`。
+请求未设置 `User-Agent` 时，宿主使用 `Manggo/<应用版本>`。
 本地服务可使用明确的 HTTP(S) endpoint，读取文件则使用文件 API。
 
 不提供 `window`、`document`、DOM、Canvas、浏览器存储或页面渲染。
@@ -149,16 +153,65 @@ if (await resource.exists()) {
 `Bun.write(path, value)` 接受字符串、字节数组、ArrayBuffer/view 或带 `arrayBuffer()` 的对象，返回写入字节数。
 不提供 Bun 的 spawn、shell、serve、包管理等其他 API。
 
+## SQLite
+
+在清单的 `requires.capabilities` 中添加 `"sqlite"`。在入口中可以用 `options.manggo.sqlite`，
+也可以用全局的 `manggo.sqlite`。相对路径从 `/package` 解析。
+
+| 开库方式 | 行为 |
+| --- | --- |
+| `sqlite.open("words.db")` 或 `sqlite.open("words.db", {mode: "readOnly"})` | 只读打开随插件分发的数据库。 |
+| `sqlite.open("words.db", {mode: "readWrite"})` | 首次用随包数据库初始化私有库，之后读写同一份私有库。 |
+| `sqlite.open("/data/words.db")` | 只读打开已有的私有数据库。 |
+| `sqlite.open("/data/words.db", {mode: "readWrite"})` | 读写打开已有的私有数据库，或创建一个空库。 |
+
+`/data/words.db` 用于在 SQLite API 中打开插件自己的私有库。覆盖安装相同插件 ID 时会保留私有数据。
+随包分发时，请包含一份可独立打开的 SQLite 文件。
+
+`db.query(statement, parameters?)` 返回行对象数组。读写连接还提供
+`db.execute(statement, parameters?)`，返回 `{changes, lastInsertRowid}`。
+参数使用数组绑定，支持字符串、数字、布尔值、`null`、`ArrayBuffer` 和 `Uint8Array`。
+查询结果的 BLOB 列返回 `ArrayBuffer`。连接仅在当前调用中可用，可用 `await db.close()` 提前关闭。
+
+下面的翻译入口查询随包分发的 `words.db`：
+
+```js
+export async function translate(text, _from, _to, {manggo}) {
+  const db = await manggo.sqlite.open("words.db");
+  try {
+    const [row] = await db.query("SELECT translation FROM words WHERE word = ?", [text]);
+    if (!row) throw new manggo.ServiceError("notFound", "未找到词条");
+    return row.translation;
+  } finally {
+    await db.close();
+  }
+}
+```
+
+需要维护插件数据时，可以直接在 `/data` 下创建私有库：
+
+```js
+const db = await manggo.sqlite.open("/data/preferences.db", {mode: "readWrite"});
+try {
+  await db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
+  await db.execute("INSERT OR REPLACE INTO settings VALUES (?, ?)", ["language", "en"]);
+} finally {
+  await db.close();
+}
+```
+
+数据库文件不限大小。SQL 仅访问当前打开的数据库。单次查询最多返回 10,000 行和 8 MiB 数据，
+最多绑定 256 个参数，参数合计最多 1 MiB。查询大量数据时请分批读取。
+
 ## 原生、Bob 与 Pot API
 
 原生 `PluginUtils` 提供 fetch、文件读取、目录、系统类型与结果回调。
-常规入口的 `options.manggo` 提供环境、日志和结构化错误；动作执行入口还提供复制、替换、
+常规入口的 `options.manggo` 提供环境、日志、结构化错误和 SQLite。动作执行入口还提供复制、替换、
 打开网页、应用协议、本地路径、文件定位和应用启动。动作的权限与用法见
 [划词动作](../README.md#划词动作)。
 
-多个服务或动作需要共享地址、密钥或软件路径时，在清单顶层声明 `config`，由
-`options.sharedConfig` 读取；数据缓存仍使用 `/data`。原生环境不提供 `bun:sqlite`，
-不能直接读取 Manggo 设置或其他插件的文件。
+多个服务或动作需要共享地址、密钥或软件路径时，在清单顶层声明 `config`，通过
+`options.sharedConfig` 读取。文件和数据库访问范围为当前插件的包和私有数据。
 
 Bob 的 `$http`、`$data`、`$file` 等，以及 Pot 的 `http`、`Body`、`Database`、`run`、
 CryptoJS 等额外 API，只适用于对应包格式。支持范围与开发注意事项见 [Bob / Pot 兼容说明](compatibility.md)。
@@ -170,14 +223,15 @@ CryptoJS 等额外 API，只适用于对应包格式。支持范围与开发注�
 | 项目 | 限制 |
 | --- | --- |
 | 清单 / 单个脚本文件 | 1 MiB / 8 MiB。 |
-| 单个常规文件 | 16 MiB。 |
+| 插件包 | 普通文件单个最多 256 MiB，合计最多 512 MiB。SQLite 数据库文件不计入字节限额。 |
+| 文件 API 读写 | 单个常规文件 16 MiB。数据库操作见 [SQLite](#sqlite)。 |
 | 服务 JSON 结果 / 文本更新累计 | 各 8 MiB。 |
 | 结构化译文快照更新 | 单次 8 MiB，每次请求的更新累计 64 MiB。 |
 | HTTP 请求体或响应体 | 每个 64 MiB。 |
 | WebSocket | 单消息 1 MiB；每个连接的收发累计分别 64 MiB。 |
 | OCR 图片输入 / 音频输出 | 各 64 MiB，另受图像格式与服务限制。 |
 | OCR 文字区域 | 每次 10,000 个区域，每区 3–64 个点。 |
-| 动作预检查 | 500 ms；普通调用使用应用中配置的总超时。 |
+| 调用超时 | 动作预检查 500 ms。普通调用最多 2 分钟，并遵守更短的服务超时设置。 |
 | 插件日志 | 每条 4 KiB，每次请求共 64 KiB；每插件最多保留最近 64 条记录。 |
 | 结构化错误 | type 最多 64 字节，message 和 addition 各 4 KiB，排障链接最多 2048 字节。 |
 | 本地路径 / 应用协议地址 | 分别最多 4096 / 32767 字节；仍受操作系统限制。 |
