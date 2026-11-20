@@ -138,11 +138,17 @@ export interface PluginOptions<StreamResult = string, Config extends object = Pl
   setResult(value: StreamResult): void;
 }
 
+/** Provide one audio source. Manggo displays a play button next to its phonetic. */
+export type PronunciationAudio = { contentType?: string } & (
+  | { url: string; base64?: never }
+  | { base64: string; url?: never }
+);
+
 export interface DictionaryPronunciation {
   label?: string;
-  /** At least one of phonetic and audioUrl must be nonempty. */
-  phonetic?: string;
-  audioUrl?: string;
+  phonetic: string;
+  /** Supported by hosts with the translation.pronunciationAudio capability. */
+  audio?: PronunciationAudio;
 }
 
 /** At least one field must contain a nonempty value. */
@@ -176,7 +182,6 @@ export interface DictionaryEntry {
   tags?: string[];
   forms?: DictionaryForm[];
   properties?: DictionaryProperty[];
-  audioUrl?: string;
 }
 
 export interface DictionaryResult {
@@ -191,12 +196,6 @@ export interface DictionaryResult {
 
 export type TranslationFormat = "plain" | "markdown" | "lines";
 
-/** URL and inline Base64 are mutually exclusive; bytes are validated at playback. */
-export type TranslationAudio = { contentType?: string } & (
-  | { url: string; base64?: never }
-  | { base64: string; url?: never }
-);
-
 /** Requires resultType: "structured". Optional fields must be omitted, not null. */
 export interface StructuredTranslationResult {
   kind: "translation";
@@ -207,7 +206,6 @@ export interface StructuredTranslationResult {
   thinking?: string;
   from?: string;
   to?: string;
-  audio?: TranslationAudio;
 }
 
 export type TranslationResult = string | DictionaryResult | StructuredTranslationResult;

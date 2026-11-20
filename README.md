@@ -439,7 +439,8 @@ export const run = (text, {manggo}) => manggo.copyToClipboard(text);
 | --- | --- |
 | `Translate` / `TranslationOptions` / `TranslationResult` | 文本、词典和结构化译文。 |
 | `GlossaryTerm` / `PluginGlossary` | 翻译入口读取的术语。 |
-| `StructuredTranslationResult` / `TranslationAudio` | 译文格式、独立思考内容及附带语音。 |
+| `StructuredTranslationResult` | 译文格式和独立思考内容。 |
+| `DictionaryPronunciation` / `PronunciationAudio` | 词典音标和对应的发音音频。 |
 | `Recognize` / `OCROptions` / `OCRResult` | OCR 文字、图像尺寸、区域坐标。 |
 | `Speak` / `SpeechOptions` / `SpeechResult` / `SpeechCandidate` | 语音返回值与可序列化候选结果。`Speak` 类型也适用于名为 `tts` 的入口。 |
 | `AddToWordbook` / `WordbookRequest` / `WordbookReceipt` | 单词本请求和回执。 |
@@ -540,7 +541,7 @@ const body = JSON.stringify({text, from, to, glossary: terms});
 
 ### 结构化译文
 
-需要指定格式、区分思考内容或携带语音时，在翻译服务中声明 `resultType:"structured"`，
+需要指定格式或区分思考内容时，在翻译服务中声明 `resultType:"structured"`，
 并要求 `translation.structured` 能力：
 
 ```json
@@ -575,16 +576,10 @@ export async function translate(text, from, to, {config, utils, signal, setResul
 | `format` | `plain`、`markdown` 或 `lines`。`plain`/`lines` 保持纯文本，Markdown 还遵从用户的渲染开关。 |
 | `thinking` | 独立显示的思考内容或状态，不进入复制、朗读和普通译文文本。 |
 | `from` / `to` | 可选的结果语言代码，缺失时沿用本次请求。 |
-| `audio` | HTTP(S) `url` 或 Base64 `base64` 二选一，可附 `contentType`。 |
 
 结构化快照与最终显式返回值都作为权威译文。无显式返回值时采用最新快照；字符串
 `setResult` 追加片段。省略 `format` 或 `thinking` 可保留此前元数据，传入 `thinking:""`
 可清空状态。可选字段应省略，不传 `null`，也不返回没有 `kind` 的 `{text:"..."}`。
-
-例如附带语音可使用 `audio:{url:"https://example.com/translation.mp3"}` 或
-`audio:{base64:"...",contentType:"audio/wav"}`。附带语音优先于再次合成，由宿主下载或
-解码并播放；格式、思考内容、语言和音频信息随翻译历史保存。
-这与单独 TTS 入口的返回协议不同，TTS 的 URL 仍须由插件先下载。
 
 ### 结构化词典
 
@@ -612,11 +607,12 @@ return {
       {
         label: "UK",
         phonetic: "həˈləʊ",
-        audioUrl: "https://example.com/hello-uk.mp3",
+        audio: { url: "https://example.com/hello-uk.mp3" },
       },
       {
         label: "US",
         phonetic: "həˈloʊ",
+        audio: { url: "https://example.com/hello-us.mp3" },
       },
     ],
     meanings: [
@@ -638,7 +634,6 @@ return {
     properties: [
       { key: "source", label: "来源", value: "My Dictionary" },
     ],
-    audioUrl: "https://example.com/hello.mp3",
   },
 };
 ```
@@ -654,17 +649,17 @@ return {
 | `tags` | string[] | 否 | 整个词条的标签。 |
 | `forms` | object[] | 否 | 词形变化。 |
 | `properties` | object[] | 否 | 其他展示属性。 |
-| `audioUrl` | string | 否 | 词条级发音资源 URL。 |
 
 `pronunciations[]`：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `label` | string | 读音标签，例如 `UK`、`US`。 |
-| `phonetic` | string | 音标。 |
-| `audioUrl` | string | 发音资源 URL。 |
+| `phonetic` | string | 必填的音标。 |
+| `audio` | object | 可选的发音音频。提供 HTTP(S) `url` 或 Base64 `base64`，可附 `contentType`。 |
 
-每项至少提供 `phonetic` 或 `audioUrl`。
+Manggo 会在带有 `audio` 的音标旁显示播放按钮。用户点击后播放该音标的发音。
+插件依赖发音播放时，可在清单的 `requires.capabilities` 中添加 `translation.pronunciationAudio`。
 
 `meanings[]`：
 

@@ -53,7 +53,8 @@ const response = await options.utils.fetch(options.config.endpoint, {
 | `service.validate` | 配置验证函数。 |
 | `service.errors` | 结构化错误。 |
 | `translation.context` | 翻译原文、语言和取消上下文。 |
-| `translation.structured` | 译文格式、独立思考内容与附带音频。 |
+| `translation.structured` | 译文格式和独立思考内容。 |
+| `translation.pronunciationAudio` | 在词典音标旁播放对应的发音音频。 [结构化词典](../README.md#结构化词典) |
 | `translation.glossary` | 通过 `options.glossary.getTerms()` 读取本次翻译的术语。 |
 | `config.shared` | 插件级共享设置。 |
 | `sqlite` | 原生 SQLite API。 |

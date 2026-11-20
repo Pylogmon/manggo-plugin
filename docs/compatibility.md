@@ -23,7 +23,7 @@
 | `$timer` / `$signal` | 秒级 schedule/invalidate；send/subscribe/dispose/removeAllSubscriber。 |
 | `$websocket` | 请求头、子协议、握手超时、显式自签名选项；文本/二进制消息、ping/pong、关闭码/原因和 readyState。 |
 | 工具与加密 | `$util`、`require("crypto-js")` 及子模块；CryptoJS 4.2.0 的 hash/HMAC、AES、mode、padding 和 KDF。 |
-| 翻译结果 | `toParagraphs`、`toDict`、Bob 1.21 `content.format/text`；支持流式更新、最终结果、独立的 `thinkInfo` 与附带的 `toTTS` 音频。 |
+| 翻译结果 | `toParagraphs`、`toDict`、Bob 1.21 `content.format/text`；支持流式更新、最终结果、独立的 `thinkInfo` 与附带的 `toTTS` 音频。`toDict.phonetics[].tts` 用于播放对应的音标发音。 |
 | OCR 结果 | `texts`、`regionInfos` / `paragraphInfos`、`boundingBox.points` 和图像尺寸；有坐标时可用于图片选字，纯文本结果也可用。 |
 | TTS | `$data`、字节、Base64 和可访问的音频 URL。 |
 | 配置验证 | `pluginValidate(completion)` 接入 Manggo 编辑界面的“测试连接”，使用当前配置草稿。 |
@@ -46,7 +46,7 @@ Manggo 中设置。没有验证函数时，“测试连接”使用示例请求�
 | --- | --- |
 | 清单与入口 | `info.json`、needs/language；ESM、default 对象和全局函数，参数包含 config/detect/setResult/utils。 |
 | HTTP | `http.fetch` / `tauriFetch`，Headers、query、Body.json/text/bytes/form、ResponseType 和 timeout；也可使用 fetch、Blob、File、FormData、WebSocket。 |
-| 字典 | pronunciations/explanations/associations/sentence。 |
+| 字典 | 支持 pronunciations/explanations/associations/sentence。`pronunciations[].voice` 可提供音频字节，在对应音标旁播放。 |
 | 流式翻译 | `setResult` 传入累计全文，可追加或替换之前文本；最终返回值优先。 |
 | CryptoJS | `utils.CryptoJS` / 全局 `CryptoJS`，提供完整 4.2.0 API。 |
 | Database | SQLite 的 load/select/execute/close 与参数绑定，修改内容保存在插件私有数据中。 |
