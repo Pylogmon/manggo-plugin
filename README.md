@@ -19,6 +19,7 @@ Manggo 原生插件可以扩展翻译、OCR、语音合成、生词本服务和�
 
 ## 目录
 
+- [安装与更新](#安装与更新)
 - [快速开始](#快速开始)
 - [插件清单](#插件清单)
 - [服务配置表单](#服务配置表单)
@@ -32,11 +33,18 @@ Manggo 原生插件可以扩展翻译、OCR、语音合成、生词本服务和�
 - [划词动作](#划词动作)
 - [错误处理与工程实践](#错误处理与工程实践)
 - [打包、安装与发布](#打包安装与发布)
+  - [发布可更新的插件](#发布可更新的插件)
 - [本仓库示例](#本仓库示例)
 
-## 快速开始
+## 安装与更新
 
-在 Manggo 中安装和调用插件需要 Pro 授权。
+在 Manggo 的「插件管理」中点击「安装插件」，选择下载的 `.mplugin` 文件。安装和使用插件需要 Pro 授权。 [Bob / Pot 插件安装说明](docs/compatibility.md)
+
+打开「插件管理」时，Manggo 会自动检查已有更新源的插件。发现兼容的新版后，卡片上的「已加载」会变成绿色的「可更新」。点击徽标可查看版本和发布说明，再确认安装。更新后可继续使用原来的服务配置。
+
+如果已安装的版本没有更新地址，可以下载新版插件包，在「插件管理」中直接覆盖安装。
+
+## 快速开始
 
 最小目录结构：
 
@@ -90,7 +98,7 @@ export async function translate(text, from, to, options) {
 zip -r my-translator.mplugin manggo.plugin.json main.js icon.png
 ```
 
-在 Manggo 的“插件管理”页面安装生成的文件。翻译、OCR、语音和生词本服务需要到对应的服务设置页面添加；划词动作会在安装后自动出现在“划词助手”的动作列表中，无需再次添加。
+[安装生成的插件包](#安装与更新)后，到对应的服务设置添加翻译、OCR、语音或生词本服务。划词动作会自动出现在「划词助手」的动作列表中。
 
 ## 插件清单
 
@@ -107,6 +115,7 @@ zip -r my-translator.mplugin manggo.plugin.json main.js icon.png
 | `description` | string | 否 | 插件简介。 |
 | `author` | string | 否 | 作者或组织名称。 |
 | `homepage` | string | 否 | 项目主页或源码地址。 |
+| `updateUrl` | string | 否 | HTTPS 更新清单地址。 [发布方法](#发布可更新的插件) |
 | `icon` | string | 否 | 图标路径，相对插件根目录。 |
 | `permissions` | string[] | 否 | 插件级权限。需要访问网络时声明 `network`。 |
 | `requires` | object | 否 | 最低应用版本、所需宿主能力和支持的平台。 |
@@ -1120,6 +1129,33 @@ zip -r dist/my-plugin.mplugin manggo.plugin.json main.js icon.png assets
 
 插件依赖必须提前构建并随包分发；用户安装时不会下载 Node、Bun 或 npm 包。第三方库应优先选择
 纯 JavaScript、无 DOM 且只依赖已支持宿主 API 的实现，并在 Manggo 中验证。
+
+### 发布可更新的插件
+
+为更新清单选一个长期可用的 HTTPS 地址，在 `manggo.plugin.json` 顶层添加 `"updateUrl": "https://example.com/my-translator/updates.json"`。从第一个支持更新的插件包起就写入这个地址。
+
+1. 保持插件的 `id`，提高 `version`，例如从 `1.0.0` 升到 `1.1.0`。重新打包并上传到可直接下载的 HTTPS 地址。
+2. 对发布的插件包计算 SHA-256。运行 `shasum -a 256 my-translator-1.1.0.mplugin`，取输出的第一列。
+3. 将版本、下载地址和校验值写入 `updates.json`，再把清单发布到 `updateUrl` 指定的地址。
+
+```json
+{
+  "id": "com.example.my-translator",
+  "versions": [
+    {
+      "version": "1.1.0",
+      "url": "https://example.com/my-translator/my-translator-1.1.0.mplugin",
+      "sha256": "<替换为插件包的 SHA-256>",
+      "notes": "改进翻译选项的提示。"
+    }
+  ]
+}
+```
+
+`id` 和 `version` 要与插件包内的清单一致。`notes` 是可选的纯文本发布说明。
+清单可保留多个版本。如果某个版本有最低 Manggo 版本、平台或能力要求，在对应条目中填写与包内一致的 `requires`，以便用户看到可安装的新版。 [版本与能力要求](#版本与能力要求)
+
+发布后，可安装已包含 `updateUrl` 的上一版，打开「插件管理」验证能否更新。
 
 ## 本仓库示例
 

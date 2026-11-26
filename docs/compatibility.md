@@ -1,12 +1,16 @@
 # Bob / Pot 插件兼容说明
 
-在 Manggo 的「设置 → 插件 → 安装插件」中选择 `.bobplugin` 或 `.potext`，再到对应的服务设置添加插件服务并填写配置。
+在 Manggo 的「插件管理」中点击「安装插件」，选择 `.bobplugin` 或 `.potext`，再到对应的服务设置添加插件服务并填写配置。
 安装和调用插件需要 Pro 授权。运行环境已内置。
 
 本文列出用户和插件作者可以依赖的兼容范围。编写原生插件请使用
 [开发指南](../README.md) 与 [SDK](../sdk/manggo-plugin.d.ts)；Bob / Pot 的额外 API 不属于原生 `PluginUtils`。
 
 ## Bob
+
+打开「插件管理」时，Manggo 会自动检查已声明 `appcast` 的 Bob 插件。发现兼容的新版后，点击卡片上绿色的「可更新」徽标，查看发布说明并确认安装。
+
+插件作者可沿用 `info.json` 中的 `appcast` 字段和现有 `.bobplugin` 发布包。更新清单和插件包的下载地址均使用 HTTPS。 [Bob 官方发布指南](https://bobtranslate.com/plugin/quickstart/publish.html)
 
 支持翻译、OCR 和 TTS 三类服务。API 用法可参考 Bob 的
 [官方 API](https://bobtranslate.com/plugin/api/intro.html)、
@@ -31,7 +35,7 @@
 
 `$env` 的 Bob 兼容版本为 1.21.0；其中的 `$env.manggo` 提供实际 Manggo 版本和运行环境。
 回调只对本次请求有效；完成或取消后，不应继续提交结果。服务的启用、配置和总超时在
-Manggo 中设置。没有验证函数时，“测试连接”使用示例请求；appcast 自动更新不在 Manggo 中提供。
+Manggo 中设置。没有验证函数时，“测试连接”使用示例请求。
 
 ## Pot
 
